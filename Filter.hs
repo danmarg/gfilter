@@ -3,7 +3,7 @@ module Filter where
 import Data.List
 
 -- Dunno.
-maxQueryLength = 1500
+maxQueryLength = 512
 
 -- Filter primitives
 data Cond = List String |
@@ -42,19 +42,21 @@ from x = (Sender x) `Or` (From x)
 
 -- Expand rules on ORs to avoid size limits.
 expand :: Rule -> [Rule]
-expand (Rule c as) = map (\x -> Rule x as) (expand' c)
-expand' :: Cond -> [Cond]
-expand' (x `Or` y) = maybeExpand x ++ maybeExpand y
-expand' (Any xs) = foldr (\x cs -> maybeExpand x ++ cs) [] xs
-expand' (x `And` y) =
-  let xs = expand' x in
-  let ys = expand' y in
+expand (Rule c as) = map (\x -> Rule x as) (maybeExpand c)
+expandCond :: Cond -> [Cond]
+expandCond (x `Or` y) = maybeExpand x ++ maybeExpand y
+expandCond (Any (x:xs)) =
+  if (length $ toQuery (Any (x:xs))) > maxQueryLength then
+  maybeExpand x ++ (maybeExpand (Any xs)) else [Any (x:xs)]
+expandCond (x `And` y) =
+  let xs = expandCond x in
+  let ys = expandCond y in
   let pairs = [(x,y) | x <- xs, y <- ys] in
   map (\(x, y) -> x `And` y) pairs
-expand' x = [x]
+expandCond x = [x]
 maybeExpand x =
   if (length $ toQuery x) > maxQueryLength then
-  expand' x else [x]
+  expandCond x else [x]
 
 -- Compile a bunch of rules. Is there any reasonable error checking to do here?
 compile :: [Rule] -> String
