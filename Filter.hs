@@ -35,7 +35,9 @@ data Rule = Rule Cond [Action]
 (==>) c as = Rule c as
 
 -- Convenience functions
+-- toOrCc does what it says.
 toOrCc x = (To x) `Or` (Cc x)
+-- from does Sender or From.
 from x = (Sender x) `Or` (From x)
 
 -- Expand rules on ORs to avoid size limits.
@@ -44,6 +46,7 @@ expand (Rule c as) = map (\x -> Rule x as) (maybeExpand c)
 expandCond :: Cond -> [Cond]
 expandCond (x `Or` y) = maybeExpand x ++ maybeExpand y
 expandCond (Any (x:xs)) =
+  -- Only expand Anys for as long as the tail is over maxQueryLength.
   if (length $ toQuery (Any (x:xs))) > maxQueryLength then
   maybeExpand x ++ (maybeExpand (Any xs)) else [Any (x:xs)]
 expandCond (x `And` y) =
@@ -76,6 +79,7 @@ compile' ((Rule c a):rs) =
 (+++) :: String -> String -> String
 (+++) x y  = x ++ "\"" ++ y ++ "\""
 
+-- Convert a Cond to a Gmail query string.
 toQuery :: Cond -> String
 toQuery (List x) = "list:" +++ x
 toQuery (To x) = "to:" +++  x
@@ -90,6 +94,7 @@ toQuery (Not x) = "-(" ++ (toQuery x) ++ ")"
 toQuery (All (x:xs)) = toQuery (foldl (\x y -> And x y) x xs)
 toQuery (Any (x:xs)) = toQuery (foldl (\x y -> Or x y) x xs)
 
+-- Convert an Action to a Gmail action XML.
 toAction :: Action -> String
 toAction Archive = "<apps:property name='shouldArchive' value='true'/>"
 toAction (Label x) = "<apps:property name='label' value='" ++ x ++ "'/>"
