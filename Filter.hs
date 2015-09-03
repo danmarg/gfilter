@@ -76,17 +76,17 @@ compile' ((Rule c a):rs) =
   ++ compile' rs
   
 --- Concatenate two strings, quoting the second.
-(+++) :: String -> String -> String
-(+++) x y  = x ++ "\"" ++ y ++ "\""
+(+-+) :: String -> String -> String
+(+-+) x y  = x ++ "\"" ++ y ++ "\""
 
 -- Convert a Cond to a Gmail query string.
 toQuery :: Cond -> String
-toQuery (List x) = "list:" +++ x
-toQuery (To x) = "to:" +++  x
-toQuery (Cc x) = "cc:" +++ x
-toQuery (From x) = "from:" +++ x
-toQuery (Sender x) = "sender:" +++ x
-toQuery (Subject x) = "subject:" +++ x
+toQuery (List x) = "list:" +-+ x
+toQuery (To x) = "to:" +-+  x
+toQuery (Cc x) = "cc:" +-+ x
+toQuery (From x) = "from:" +-+ x
+toQuery (Sender x) = "sender:" +-+ x
+toQuery (Subject x) = "subject:" +-+ x
 toQuery (Has x) = "\"" ++ x ++ "\""
 toQuery (Or x y) = (toQuery x) ++ " OR " ++ (toQuery y)
 toQuery (And x y) = "((" ++ (toQuery x) ++ ") AND (" ++ (toQuery y) ++ "))"
