@@ -33,8 +33,6 @@ data Rule = Rule Cond [Action]
 -- Make a rule
 (==>) :: Cond -> [Action] -> Rule
 (==>) c as = Rule c as
-(-->) :: Cond -> Action -> Rule
-(-->) c a = Rule c [a]
 
 -- Convenience functions
 toOrCc x = (To x) `Or` (Cc x)
