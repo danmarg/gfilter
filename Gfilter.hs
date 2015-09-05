@@ -1,44 +1,83 @@
-module Filter where
+-- |
+-- Module      : Gfilter
+-- Description : Gfilter provides a simple eDSL for generating Gmail mail filters.
+-- Copyright   : (c) Daniel Margolis, 2015
+-- License     : MIT
+-- Maintainer  : dan@af0.net
+-- Stability   : experimental
+-- Portability : portable
+--
+-- Gfilter provides an embedded DSL for writing Gmail mail filters, which can then
+-- be exported as XML which can be imported into Gmail.
+--
+-- Note that Gmail queries have a maximum (string) length; to make it easier to
+-- write very long filters, Gfilter splits rules with long conditions into
+-- multiple rules by splitting on logical "or"s.
+--
+-- --* Example
+--
+-- @
+-- import Gfilter
+--
+-- rules = List \"somemailinglist.googlegroups.com\" ==> [Archive, Label \"somelist\"] : []
+-- main = putStr $ compile rules
+-- @
+module Gfilter (
+  Cond(List,
+       To,
+       Cc,
+       From,
+       Subject,
+       Has,
+       DeliveredTo,
+       Attachment,
+       Or,
+       And,
+       Not,
+       All,
+       Any),
+  Action(Archive, Label, Star, Delete, MarkAsRead, Important, Unimportant),
+  (==>), toOrCc, compile
+) where
 
 import Data.List
 
 -- Dunno.
 maxQueryLength = 512
 
--- Filter primitives
-data Cond = List String |
-            To String |
-            Cc String |
-            From String |
-            Sender String |
-            Subject String |
-            Has String |
-            Or Cond Cond |
-            And Cond Cond |
-            Not Cond |
-            All [Cond] |
-            Any [Cond]
+-- | Cond represents a filter condition.
+data Cond = List String  -- ^ List matches mail to a mailing list.
+          | To String  -- ^ To matches mail with the given To:.
+          | Cc String  -- ^ Cc matches mail with the given CC:.
+          | From String  -- ^ From matches mail with the given From:.
+          | Subject String  -- ^ Subject matches mail with the given Subject:.
+          | Has String  -- ^ Has matches arbitrary string patterns.
+          | DeliveredTo String  -- ^ DeliveredTo matches on Delivered-To:.
+          | Attachment  -- ^ Attachment matches messages with attachments.
+          | Or Cond Cond  -- ^ Or combines two conditions in a logical "or".
+          | And Cond Cond  -- ^ And combines two conditions in a logical "and".
+          | Not Cond  -- ^ Not inverts a condition.
+          | All [Cond]  -- ^ All matches if all of the conditions are true.
+          | Any [Cond]  -- ^ Any matches if any of the conditions are true.
 
--- Actions
-data Action = Archive |
-              Label String |
-              Star |
-              Delete |
-              MarkAsRead |
-              Important |
-              Unimportant
+-- | Action represents the actions of a filter.
+data Action = Archive  -- ^ Archive a message (skip the inbox).
+            | Label String  -- ^ Label a message.
+            | Star  -- ^ Star a message.
+            | Delete  -- ^ Delete a message.
+            | MarkAsRead  -- ^ Mark a message read.
+            | Important  -- ^ Mark a message important.
+            | Unimportant  -- ^ Mark a message unimportant.
 
+-- | Rule represents a complete filter rule.
 data Rule = Rule Cond [Action]
 
--- Make a rule
+-- | The ==> creates a filter from a condition and a list of actions.
 (==>) :: Cond -> [Action] -> Rule
 (==>) c as = Rule c as
 
--- Convenience functions
--- toOrCc does what it says.
+-- | toOrCc does what it says.
 toOrCc x = (To x) `Or` (Cc x)
--- from does Sender or From.
-from x = (Sender x) `Or` (From x)
 
 -- Expand rules on ORs to avoid size limits.
 expand :: Rule -> [Rule]
@@ -59,7 +98,8 @@ maybeExpand x =
   if (length $ toQuery x) > maxQueryLength then
   expandCond x else [x]
 
--- Compile a bunch of rules. Is there any reasonable error checking to do here?
+-- | compile compiles a list of rules into an string XML file. The result can
+-- be imported into Gmail.
 compile :: [Rule] -> String
 compile rs =
    "<feed xmlns:apps='http://schemas.google.com/apps/2006' " ++
@@ -85,9 +125,10 @@ toQuery (List x) = "list:" +-+ x
 toQuery (To x) = "to:" +-+  x
 toQuery (Cc x) = "cc:" +-+ x
 toQuery (From x) = "from:" +-+ x
-toQuery (Sender x) = "sender:" +-+ x
 toQuery (Subject x) = "subject:" +-+ x
 toQuery (Has x) = "\"" ++ x ++ "\""
+toQuery (DeliveredTo x) = "deliveredto:" +-+ x
+toQuery Attachment = "has:attachment"
 toQuery (Or x y) = (toQuery x) ++ " OR " ++ (toQuery y)
 toQuery (And x y) = "((" ++ (toQuery x) ++ ") AND (" ++ (toQuery y) ++ "))"
 toQuery (Not x) = "-(" ++ (toQuery x) ++ ")"
