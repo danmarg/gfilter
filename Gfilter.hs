@@ -68,6 +68,8 @@ data Action = Archive  -- ^ Archive a message (skip the inbox).
             | MarkAsRead  -- ^ Mark a message read.
             | Important  -- ^ Mark a message important.
             | Unimportant  -- ^ Mark a message unimportant.
+            | NeverSpam -- ^ Never mark as spam.
+            | ForwardTo String -- ^ Forward a message.
 
 -- | Rule represents a complete filter rule.
 data Rule = Rule Cond [Action]
@@ -144,6 +146,8 @@ toAction Delete = "<apps:property name='shouldDelete' value='true'/>"
 toAction MarkAsRead = "<apps:property name='shouldMarkAsRead' value='true'/>"
 toAction Important = "<apps:property name='shouldMarkAsImportant' value='true'/>"
 toAction Unimportant = "<apps:property name='shouldNeverMarkAsImportant' value='true'/>"
+toAction NeverSpam = "<apps:property name='shouldNeverSpam' value='true'/>"
+toAction (ForwardTo  x) = "<apps:property name='forwardTo' value='" ++ x ++ "'/>"
 
 instance Show Cond where show x = toQuery x
 instance Eq Cond where
