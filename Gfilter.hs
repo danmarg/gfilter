@@ -19,7 +19,7 @@
 -- @
 -- import Gfilter
 --
--- rules = List \"somemailinglist.googlegroups.com\" ==> [Archive, Label \"somelist\"] : []
+-- rules = [List \"somemailinglist.googlegroups.com\" ==> [Archive, Label \"somelist\"]]
 -- main = putStr $ compile rules
 -- @
 module Gfilter (
@@ -77,28 +77,28 @@ data Rule = Rule Cond [Action]
 
 -- | The ==> creates a filter from a condition and a list of actions.
 (==>) :: Cond -> [Action] -> Rule
-(==>) c as = Rule c as
+(==>) = Rule
 
 -- | toOrCc does what it says.
-toOrCc x = (To x) `Or` (Cc x)
+toOrCc x = To x `Or` Cc x
 
 -- Expand rules on ORs to avoid size limits.
 expand :: Rule -> [Rule]
-expand (Rule c as) = map (\x -> Rule x as) (maybeExpand c)
+expand (Rule c as) = map (`Rule` as) (maybeExpand c)
 expandCond :: Cond -> [Cond]
 expandCond (x `Or` y) = maybeExpand x ++ maybeExpand y
 expandCond (Any (x:xs)) =
   -- Only expand Anys for as long as the tail is over maxQueryLength.
-  if (length $ toQuery (Any (x:xs))) > maxQueryLength then
-  maybeExpand x ++ (maybeExpand (Any xs)) else [Any (x:xs)]
+  if length (toQuery (Any (x:xs))) > maxQueryLength then
+  maybeExpand x ++ maybeExpand (Any xs) else [Any (x:xs)]
 expandCond (x `And` y) =
   let xs = expandCond x in
   let ys = expandCond y in
   let pairs = [(x,y) | x <- xs, y <- ys] in
-  map (\(x, y) -> x `And` y) pairs
+  map (uncurry And) pairs
 expandCond x = [x]
 maybeExpand x =
-  if (length $ toQuery x) > maxQueryLength then
+  if length (toQuery x) > maxQueryLength then
   expandCond x else [x]
 
 -- | compile compiles a list of rules into an string XML file. The result can
@@ -112,21 +112,21 @@ compile rs =
    "</feed>"
 compile' :: [Rule] -> String
 compile' [] = ""
-compile' ((Rule c a):rs) =
+compile' (Rule c a:rs) =
   "<entry><category term='filter'/><apps:property name='hasTheWord' value='" ++
-  (toQuery c) ++
-  "'/>" ++ (foldl (\x y -> x ++ (toAction y)) "" a) ++ "</entry>\n"
+  toQuery c ++
+  "'/>" ++ foldl (\x y -> x ++ toAction y) "" a ++ "</entry>\n"
   ++ compile' rs
   
 --- Concatenate two strings, quoting the second.
 (+-+) :: String -> String -> String
-(+-+) x y  = x ++ "\"" ++ (escapeQuote y) ++ "\""
+(+-+) x y  = x ++ "\"" ++ escapeQuote y ++ "\""
 
 -- Escape quotes.
 escapeQuote :: String -> String
 escapeQuote [] = []
 escapeQuote (x:xs)
-    | x `elem` ['"', '\\'] = '\\' : x : escapeQuote xs
+    | x `elem` "\"\\" = '\\' : x : escapeQuote xs
     | otherwise = x : escapeQuote xs
 
 -- Convert a Cond to a Gmail query string.
@@ -139,17 +139,17 @@ toQuery (Subject x) = "subject:" +-+ x
 toQuery (Has x) = "\"" ++ x ++ "\""
 toQuery (DeliveredTo x) = "deliveredto:" +-+ x
 toQuery Attachment = "has:attachment"
-toQuery (Or x y) = (toQuery x) ++ " OR " ++ (toQuery y)
-toQuery (And x y) = "((" ++ (toQuery x) ++ ") AND (" ++ (toQuery y) ++ "))"
-toQuery (Not x) = "-(" ++ (toQuery x) ++ ")"
-toQuery (All (x:xs)) = toQuery (foldl (\x y -> And x y) x xs)
-toQuery (Any (x:xs)) = toQuery (foldl (\x y -> Or x y) x xs)
+toQuery (Or x y) = toQuery x ++ " OR " ++ toQuery y
+toQuery (And x y) = "((" ++ toQuery x ++ ") AND (" ++ toQuery y ++ "))"
+toQuery (Not x) = "-(" ++ toQuery x ++ ")"
+toQuery (All (x:xs)) = toQuery (foldl And x xs)
+toQuery (Any (x:xs)) = toQuery (foldl Or x xs)
 
 -- Convert an Action to a Gmail action XML.
 toAction :: Action -> String
 toAction Archive = "<apps:property name='shouldArchive' value='true'/>"
 toAction (Label x) = "<apps:property name='label' value='" ++
-                      (Xml.stringEscapeXml x) ++ "'/>"
+                      Xml.stringEscapeXml x ++ "'/>"
 toAction Star = "<apps:property name='shouldStar' value='true'/>"
 toAction Delete = "<apps:property name='shouldDelete' value='true'/>"
 toAction MarkAsRead = "<apps:property name='shouldMarkAsRead' value='true'/>"
@@ -157,8 +157,8 @@ toAction Important = "<apps:property name='shouldMarkAsImportant' value='true'/>
 toAction Unimportant = "<apps:property name='shouldNeverMarkAsImportant' value='true'/>"
 toAction NeverSpam = "<apps:property name='shouldNeverSpam' value='true'/>"
 toAction (ForwardTo  x) = "<apps:property name='forwardTo' value='" ++
-                          (Xml.stringEscapeXml x) ++ "'/>"
+                          Xml.stringEscapeXml x ++ "'/>"
 
-instance Show Cond where show x = toQuery x
+instance Show Cond where show = toQuery
 instance Eq Cond where
-  x == y = (show x == show y)
+  x == y = show x == show y

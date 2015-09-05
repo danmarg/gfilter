@@ -17,12 +17,13 @@ multiple rules by splitting on logical "or"s.
 
 ```
 #!/usr/bin/env runhaskell
-rules = List "somemailinglist.googlegroups.com" ==> [Archive, Label "somelist"]
-      : From  "boss@mycompany.com" ==> [Star, Important]
-      : toOrCc "me@mycompany.com" ==> [Important]
-      : []
 
-main = do putStr $ compile rules
+rules = [ List "somemailinglist.googlegroups.com" ==> [Archive, Label "somelist"]
+        , From  "boss@mycompany.com" ==> [Star, Important]
+        , toOrCc "me@mycompany.com" ==> [Important]
+        ]
+
+main = putStr $ compile rules
 ```
 
 Run this example like ./example.hs > rules.xml. You can then go to the Filter
@@ -33,8 +34,9 @@ More powerful rules can be written by reusing condition clauses, like so:
 ```
 toMe = To "me@gmail.com" `Or` To "me@hotmail.com"
 
-rules = toMe ==> [Important]
-      : List "somelist" `And` (Not toMe) ==> [Archive]
+rules = [ toMe ==> [Important]
+        , List "somelist" `And` (Not toMe) ==> [Archive]
+        ]
 ```
 
 You get the point.
