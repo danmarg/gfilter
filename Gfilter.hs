@@ -41,7 +41,6 @@ module Gfilter (
 ) where
 
 import Data.List
-import Text.XML.HXT.DOM.Util as Xml
 
 -- Dunno.
 maxQueryLength = 512
@@ -101,6 +100,17 @@ maybeExpand x =
   if length (toQuery x) > maxQueryLength then
   expandCond x else [x]
 
+-- Convert a string to a single-quoted XML attribute value.
+-- For example, quoteXmlAttribute "a'b" == "'a&apos;b'".
+quoteXmlAttribute :: String -> String
+quoteXmlAttribute s = "'" ++ concatMap escape s ++ "'"
+  where
+    escape c = case c of
+      '&' -> "&amp;"
+      '<' -> "&lt;"
+      '\'' -> "&apos;"
+      otherwise -> [c]
+
 -- | compile compiles a list of rules into an string XML file. The result can
 -- be imported into Gmail.
 compile :: [Rule] -> String
@@ -113,11 +123,10 @@ compile rs =
 compile' :: [Rule] -> String
 compile' [] = ""
 compile' (Rule c a:rs) =
-  "<entry><category term='filter'/><apps:property name='hasTheWord' value='" ++
-  toQuery c ++
-  "'/>" ++ foldl (\x y -> x ++ toAction y) "" a ++ "</entry>\n"
-  ++ compile' rs
-  
+  "<entry><category term='filter'/><apps:property name='hasTheWord' value=" ++
+  quoteXmlAttribute (toQuery c) ++ "/>" ++ foldl (\x y -> x ++ toAction y) "" a
+  ++ "</entry>\n" ++ compile' rs
+
 --- Concatenate two strings, quoting the second.
 (+-+) :: String -> String -> String
 (+-+) x y  = x ++ "\"" ++ escapeQuote y ++ "\""
@@ -148,16 +157,16 @@ toQuery (Any (x:xs)) = toQuery (foldl Or x xs)
 -- Convert an Action to a Gmail action XML.
 toAction :: Action -> String
 toAction Archive = "<apps:property name='shouldArchive' value='true'/>"
-toAction (Label x) = "<apps:property name='label' value='" ++
-                      Xml.stringEscapeXml x ++ "'/>"
+toAction (Label x) = "<apps:property name='label' value=" ++
+                     quoteXmlAttribute x ++ "/>"
 toAction Star = "<apps:property name='shouldStar' value='true'/>"
 toAction Delete = "<apps:property name='shouldDelete' value='true'/>"
 toAction MarkAsRead = "<apps:property name='shouldMarkAsRead' value='true'/>"
 toAction Important = "<apps:property name='shouldMarkAsImportant' value='true'/>"
 toAction Unimportant = "<apps:property name='shouldNeverMarkAsImportant' value='true'/>"
 toAction NeverSpam = "<apps:property name='shouldNeverSpam' value='true'/>"
-toAction (ForwardTo  x) = "<apps:property name='forwardTo' value='" ++
-                          Xml.stringEscapeXml x ++ "'/>"
+toAction (ForwardTo  x) = "<apps:property name='forwardTo' value=" ++
+                          quoteXmlAttribute x ++ "/>"
 
 instance Show Cond where show = toQuery
 instance Eq Cond where
