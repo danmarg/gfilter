@@ -160,7 +160,7 @@ toAction Archive = "<apps:property name='shouldArchive' value='true'/>"
 toAction (Label x) = "<apps:property name='label' value=" ++
                      quoteXmlAttribute x ++ "/>"
 toAction Star = "<apps:property name='shouldStar' value='true'/>"
-toAction Delete = "<apps:property name='shouldDelete' value='true'/>"
+toAction Delete = "<apps:property name='shouldTrash' value='true'/>"
 toAction MarkAsRead = "<apps:property name='shouldMarkAsRead' value='true'/>"
 toAction Important = "<apps:property name='shouldMarkAsImportant' value='true'/>"
 toAction Unimportant = "<apps:property name='shouldNeverMarkAsImportant' value='true'/>"
